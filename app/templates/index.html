@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Caption Generator</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Image Caption Generator</h1>
+        <p>Upload an image and let LLaVA generate a caption.</p>
+
+        <form action="/caption" method="post" enctype="multipart/form-data">
+            <input type="file" name="file" accept="image/*" required>
+            <button type="submit">Generate Caption</button>
+        </form>
+
+        {% if filename %}
+            <div class="info">
+                <strong>Uploaded:</strong> {{ filename }}
+            </div>
+        {% endif %}
+
+        {% if caption %}
+            <div class="result">
+                <h2>Generated Caption</h2>
+                <p>{{ caption }}</p>
+            </div>
+        {% endif %}
+
+        {% if error %}
+            <div class="error">
+                <h2>Error</h2>
+                <p>{{ error }}</p>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>
