@@ -1,13 +1,14 @@
 from io import BytesIO
 from pathlib import Path
+import base64
 
-from fastapi import FastAPI, File, Request, UploadFile
+from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from PIL import Image
 
-from app.model import generate_caption
+from app.model import generate_captions
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -23,38 +24,61 @@ async def home(request: Request):
         request,
         "index.html",
         {
-            "caption": None,
+            "captions": None,
             "error": None,
             "filename": None,
+            "selected_mode": "standard",
+            "selected_count": 1,
+            "image_data": None,
+            "image_mime": None,
         },
     )
 
 
 @app.post("/caption", response_class=HTMLResponse)
-async def caption_image(request: Request, file: UploadFile = File(...)):
+async def caption_image(
+    request: Request,
+    file: UploadFile = File(...),
+    mode: str = Form("standard"),
+    count: int = Form(1),
+):
     try:
         if not file.content_type or not file.content_type.startswith("image/"):
             return templates.TemplateResponse(
                 request,
                 "index.html",
                 {
-                    "caption": None,
+                    "captions": None,
                     "error": "Please upload a valid image file.",
                     "filename": None,
+                    "selected_mode": mode,
+                    "selected_count": count,
+                    "image_data": None,
+                    "image_mime": None,
                 },
             )
 
+        if count not in [1, 3, 5]:
+            count = 1
+
         contents = await file.read()
         image = Image.open(BytesIO(contents)).convert("RGB")
-        caption = generate_caption(image)
+
+        captions = generate_captions(image=image, mode=mode, num_captions=count)
+
+        image_data = base64.b64encode(contents).decode("utf-8")
 
         return templates.TemplateResponse(
             request,
             "index.html",
             {
-                "caption": caption,
+                "captions": captions,
                 "error": None,
                 "filename": file.filename,
+                "selected_mode": mode,
+                "selected_count": count,
+                "image_data": image_data,
+                "image_mime": file.content_type,
             },
         )
 
@@ -63,8 +87,12 @@ async def caption_image(request: Request, file: UploadFile = File(...)):
             request,
             "index.html",
             {
-                "caption": None,
+                "captions": None,
                 "error": str(e),
                 "filename": None,
+                "selected_mode": mode,
+                "selected_count": count,
+                "image_data": None,
+                "image_mime": None,
             },
         )

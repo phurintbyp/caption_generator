@@ -35,15 +35,25 @@ def load_model():
     return model, processor
 
 
-def generate_caption(image: Image.Image) -> str:
+def build_prompt(mode: str) -> str:
+    prompts = {
+        "standard": "Write one short, natural caption for this image.",
+        "objects": "Write one short caption focused on the main visible objects in this image. Clearly mention the important objects and keep it to one sentence.",
+    }
+    return prompts.get(mode, prompts["standard"])
+
+
+def generate_captions(image: Image.Image, mode: str = "standard", num_captions: int = 1):
     model, processor = load_model()
     image = image.convert("RGB")
+
+    prompt_text = build_prompt(mode)
 
     conversation = [
         {
             "role": "user",
             "content": [
-                {"type": "text", "text": "Write one short, natural caption for this image."},
+                {"type": "text", "text": prompt_text},
                 {"type": "image"},
             ],
         }
@@ -63,14 +73,39 @@ def generate_caption(image: Image.Image) -> str:
             if device == "cuda" and inputs[k].dtype.is_floating_point:
                 inputs[k] = inputs[k].to(dtype)
 
+    generation_kwargs = {
+        "max_new_tokens": 60,
+    }
+
+    if num_captions > 1:
+        generation_kwargs.update({
+            "do_sample": True,
+            "temperature": 0.9,
+            "top_p": 0.9,
+            "num_return_sequences": num_captions,
+        })
+    else:
+        generation_kwargs.update({
+            "do_sample": False,
+        })
+
     with torch.no_grad():
         output_ids = model.generate(
             **inputs,
-            max_new_tokens=50,
-            do_sample=False
+            **generation_kwargs
         )
 
-    generated_ids = output_ids[:, inputs["input_ids"].shape[1]:]
-    caption = processor.batch_decode(generated_ids, skip_special_tokens=True)[0].strip()
+    prompt_len = inputs["input_ids"].shape[1]
+    generated_ids = output_ids[:, prompt_len:]
+    decoded = processor.batch_decode(generated_ids, skip_special_tokens=True)
 
-    return caption
+    cleaned = []
+    seen = set()
+
+    for text in decoded:
+        caption = text.strip()
+        if caption and caption not in seen:
+            seen.add(caption)
+            cleaned.append(caption)
+
+    return cleaned
