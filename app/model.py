@@ -74,7 +74,8 @@ def generate_captions(image: Image.Image, mode: str = "standard", num_captions: 
                 inputs[k] = inputs[k].to(dtype)
 
     generation_kwargs = {
-        "max_new_tokens": 60,
+        "max_new_tokens": 25,
+        "use_cache": True,
     }
 
     if num_captions > 1:
@@ -89,7 +90,7 @@ def generate_captions(image: Image.Image, mode: str = "standard", num_captions: 
             "do_sample": False,
         })
 
-    with torch.no_grad():
+    with torch.inference_mode():
         output_ids = model.generate(
             **inputs,
             **generation_kwargs

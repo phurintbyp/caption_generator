@@ -64,6 +64,9 @@ async def caption_image(
         contents = await file.read()
         image = Image.open(BytesIO(contents)).convert("RGB")
 
+        max_size = 1024
+        image.thumbnail((max_size, max_size))
+
         captions = generate_captions(image=image, mode=mode, num_captions=count)
 
         image_data = base64.b64encode(contents).decode("utf-8")
